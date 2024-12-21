@@ -1,0 +1,12 @@
+.kube
+.terraform
+
+node_modules
+
+.vault-password
+
+*.tfvars*
+*.tfstate*
+
+secrets_staging.yml
+secrets_production.yml
