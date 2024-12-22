@@ -1,4 +1,4 @@
-.kube
+.kube/config-*
 .terraform
 
 node_modules
@@ -10,3 +10,5 @@ node_modules
 
 secrets_staging.yml
 secrets_production.yml
+ansible/production/secrets.yml
+ansible/production/inventory.yml

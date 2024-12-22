@@ -1,0 +1,25 @@
+---
+- name: Install software
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../{{ env }}/secrets.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Copy traefik-values.yaml to the server
+      copy:
+        src: ./{{ env }}-traefik-values.yaml
+        dest: /tmp/traefik-values.yaml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Add traefik chart
+      shell: |
+        helm repo add traefik https://traefik.github.io/charts
+    - name: Update traefik
+      shell: |
+        helm repo update traefik
+    - name: Install Traefik
+      shell: |
+        helm upgrade --install traefik traefik/traefik -f /tmp/traefik-values.yaml --namespace=traefik --create-namespace

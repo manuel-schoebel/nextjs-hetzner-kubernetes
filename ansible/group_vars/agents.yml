@@ -1,0 +1,2 @@
+private_ips:
+  mainServer: "10.0.1.10"

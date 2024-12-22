@@ -1,0 +1,20 @@
+---
+- name: Add the agents
+  hosts: agents
+  become: yes
+  vars_files:
+    - ../../group_vars/agents.yml
+    - ../../{{ env }}/secrets.yml
+  tasks:
+    - name: Debug variables
+      debug:
+        msg:
+          - "Server address: {{ private_ips.mainServer }}"
+    - name: Start and init the agents
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - agent \
+          --server https://{{ private_ips.mainServer }}:6443 \
+          --node-name="$(hostname -f)" \
+          --flannel-iface=enp7s0 \
+          --kubelet-arg="cloud-provider=external" \
+          --token={{ cluster_token }}

@@ -1,0 +1,32 @@
+---
+- name: Init the cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../{{ env }}/secrets.yml
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+    - name: Install MySQL client
+      apt:
+        name: mysql-client
+        state: present
+    - name: Start and init the cluster
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --cluster-init \
+          --disable-cloud-controller \
+          --disable local-storage \
+          --node-name="$(hostname -f)" \
+          --flannel-iface=enp7s0 \
+          --kubelet-arg="cloud-provider=external" \
+          --secrets-encryption \
+          --disable=traefik \
+          --token={{ cluster_token }}
+
+    - name: Install Helm
+      shell: |
+        curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 get_helm.sh
+        ./get_helm.sh

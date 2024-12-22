@@ -1,0 +1,27 @@
+---
+- name: Init the cluster
+  hosts: servers:!server0
+  become: yes
+  vars_files:
+    - ../../group_vars/servers.yml
+    - ../../{{ env }}/secrets.yml
+  tasks:
+    - name: Debug private IPs
+      debug:
+        var: private_ips
+    - name: Debug variables
+      debug:
+        msg:
+          - "Server address: {{ private_ips.mainServer }}"
+    - name: Start and init the cluster
+      shell: |
+        curl -sfL https://get.k3s.io | sh -s - server \
+          --server https://{{ private_ips.mainServer }}:6443 \
+          --disable-cloud-controller \
+          --disable local-storage \
+          --node-name="$(hostname -f)" \
+          --flannel-iface=enp7s0 \
+          --kubelet-arg="cloud-provider=external" \
+          --secrets-encryption \
+          --disable=traefik \
+          --token={{ cluster_token }}

@@ -1,0 +1,55 @@
+globalArguments:
+  - "--global.sendanonymoususage=false"
+
+additionalArguments:
+  - "--serversTransport.insecureSkipVerify=true"
+  - "--log.level=INFO"
+  # - "--providers.kubernetesingress.ingressendpoint.ip="
+
+deployment:
+  enabled: true
+  replicas: 2
+  annotations: {}
+  podAnnotations: {}
+  additionalContainers: []
+  initContainers: []
+
+ports:
+  web:
+    redirectTo:
+      port: websecure
+  websecure:
+    tls:
+      enabled: true
+
+ingressRoute:
+  dashboard:
+    enabled: false
+
+providers:
+  kubernetesCRD:
+    enabled: true
+    ingressClass: traefik-external
+  kubernetesIngress:
+    enabled: true
+    publishedService:
+      enabled: false
+
+rbac:
+  enabled: true
+
+service:
+  enabled: true
+  single: true
+  type: LoadBalancer
+  annotations:
+    load-balancer.hetzner.cloud/hostname: k3s-lb
+    load-balancer.hetzner.cloud/http-redirect-https: "false"
+    load-balancer.hetzner.cloud/location: nbg1
+    load-balancer.hetzner.cloud/name: k3s-production-lb
+    load-balancer.hetzner.cloud/use-private-ip: "true"
+    load-balancer.hetzner.cloud/network-zone: eu-central
+  labels: {}
+  spec: {}
+  loadBalancerSourceRanges: []
+  externalIPs: []

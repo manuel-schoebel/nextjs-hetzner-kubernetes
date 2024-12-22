@@ -1,0 +1,30 @@
+---
+- name: Install software
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../{{ env }}/secrets.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Add hcloud
+      shell: |
+        helm repo add hcloud https://charts.hetzner.cloud
+    - name: Update hcloud
+      shell: |
+        helm repo update hcloud
+    - name: Check if hcloud secret exists
+      shell: |
+        kubectl -n kube-system get secret hcloud
+      register: secret_check
+      ignore_errors: true
+    - name: add secret
+      shell: |
+        kubectl -n kube-system create secret generic hcloud --from-literal=token={{ hcloud_token }} --from-literal=network={{ env }}-kumpel-private
+      when: secret_check.rc != 0
+    - name: Install hccm
+      shell: |
+        helm upgrade --install hccm hcloud/hcloud-cloud-controller-manager -n kube-system --set networking.enabled=true --set networking.clusterCIDR=10.42.0.0/16
+    - name: Install hcloud-csi
+      shell: |
+        helm upgrade --install hcloud-csi hcloud/hcloud-csi -n kube-system
