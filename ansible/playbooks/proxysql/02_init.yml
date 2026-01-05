@@ -1,0 +1,37 @@
+---
+- name: Create monitor user for proxy sql
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  tasks:
+    - name: Deploy configmap file
+      template:
+        src: configmap.yml.j2
+        dest: /tmp/proxysql-configmap.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create config map
+      shell: |
+        kubectl apply -f /tmp/proxysql-configmap.yml
+    - name: Copy statefulset.yml
+      copy:
+        src: ./stateful_set.yml
+        dest: /tmp/proxysql_stateful_set.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create stateful set
+      shell: |
+        kubectl apply -f /tmp/proxysql_stateful_set.yml
+    - name: Copy service.yml
+      copy:
+        src: ./service.yml
+        dest: /tmp/proxysql_service.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create service
+      shell: |
+        kubectl apply -f /tmp/proxysql_service.yml

@@ -3,7 +3,7 @@
   hosts: server0
   become: yes
   vars_files:
-    - ../../{{ env }}/secrets.yml
+    - ../../secrets_{{ env }}.yml
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   tasks:

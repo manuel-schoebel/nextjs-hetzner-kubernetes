@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: haproxy-service
+  namespace: default
+spec:
+  selector:
+    app: haproxy
+  type: ClusterIP
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+    - name: stats
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

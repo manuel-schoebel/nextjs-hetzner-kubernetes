@@ -1,0 +1,24 @@
+---
+- name: Configure MySQL cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Add repo Meilisearch
+      shell: |
+        helm repo add meilisearch https://meilisearch.github.io/meilisearch-kubernetes
+    - name: Install Meilisearch
+      shell: |
+        helm upgrade -i meilisearch meilisearch/meilisearch \
+          --set environment.MEILI_ENV=production \
+          --set environment.MEILI_NO_ANALYTICS=true \
+          --set persistence.size=20Gi \
+          --set persistence.enabled=true \
+          --set replicaCount=1 \
+          --set resources.requests.memory="1Gi" \
+          --set resources.requests.cpu="500m" \
+          --set resources.limits.memory="4Gi" \
+          --set resources.limits.cpu="2"

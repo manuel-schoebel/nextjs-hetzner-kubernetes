@@ -1,0 +1,63 @@
+---
+- name: Create a new database
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+
+  vars:
+    app_name: "client_service_environment"
+  tasks:
+    - name: Ensure mysql_root_password variable is defined
+      assert:
+        that:
+          - mysql_root_password is defined
+        msg: "The variable 'mysql_root_password' must be provided in the secrets file."
+    - name: Print MySQL root password to verify
+      debug:
+        msg: "MySQL root password is: {{ mysql_root_password }}"
+    - name: Create new mysql user and database
+      shell: |
+        kubectl exec -i mysql-primary-0 -n default -- bash -c "
+          mysql -u root -p{{ mysql_root_password }} -e \"
+          SHOW DATABASES;\"
+        "
+      args:
+        executable: /bin/bash
+      register: db_result
+      failed_when: db_result.rc != 0
+    - name: Create new mysql user and database
+      shell: |
+        kubectl exec -i mysql-primary-0 -n default -- bash -c "
+          mysql -u root -p{{ mysql_root_password }} -e \"
+          CREATE DATABASE IF NOT EXISTS {{ app_name }};
+          CREATE USER IF NOT EXISTS '{{ app_name }}'@'%' IDENTIFIED BY '{{ client_service_environment_db_password }}';
+          GRANT ALL PRIVILEGES ON {{ app_name }}.* TO '{{ app_name }}'@'%';
+          FLUSH PRIVILEGES;\"
+        "
+      args:
+        executable: /bin/bash
+      register: db_result
+      failed_when: db_result.rc != 0
+
+    - name: Show result of mysql user and database creation
+      debug:
+        var: db_result.stdout_lines
+
+    # GALERA CLUSTER
+    # - name: Add user to ProxySQL
+    #   shell: |
+    #     kubectl exec -i proxysql-0 -n proxysql -- bash -c "
+    #       mysql -u admin -p'{{ proxy_sql_admin_password }}' -P6032 -e \"
+    #       INSERT INTO mysql_users (username, password, default_hostgroup, active) VALUES ('{{ app_name }}', '{{ krautkugel_shopware_db_password }}', 10, 1);
+    #       LOAD MYSQL USERS TO RUNTIME;
+    #       SAVE MYSQL USERS TO DISK;\"
+    #     "
+    #   args:
+    #     executable: /bin/bash
+    #   register: proxysql_result
+    #   failed_when: proxysql_result.rc != 0
+
+    # - name: Show result of ProxySQL user addition
+    #   debug:
+    #     var: proxysql_result.stdout_lines

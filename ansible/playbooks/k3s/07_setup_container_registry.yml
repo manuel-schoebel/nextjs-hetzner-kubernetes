@@ -1,0 +1,33 @@
+---
+- name: Configure GHCR in K3s
+  hosts: all
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  tasks:
+    - name: Ensure /etc/rancher/k3s/ directory exists
+      file:
+        path: /etc/rancher/k3s/
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Copy registries.yaml to K3s nodes
+      template:
+        src: registries.yml.j2
+        dest: /etc/rancher/k3s/registries.yaml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restart K3s service on servers
+      systemd:
+        name: k3s
+        state: restarted
+      when: "'servers' in group_names"
+
+    - name: Restart K3s service on agents
+      systemd:
+        name: k3s-agent
+        state: restarted
+      when: "'agents' in group_names"

@@ -1,0 +1,38 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxysqlcluster
+  namespace: proxysql
+  labels:
+    app: proxysql
+spec:
+  clusterIP: None
+  selector:
+    app: proxysql
+  ports:
+    - port: 6032
+      name: proxysql-admin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxysql
+  namespace: proxysql
+  labels:
+    app: proxysql
+spec:
+  type: NodePort
+  selector:
+    app: proxysql
+  ports:
+    - name: proxysql-mysql
+      nodePort: 30033
+      port: 6033
+      protocol: TCP
+      targetPort: 6033
+    - name: proxysql-admin
+      nodePort: 30032
+      port: 6032
+      protocol: TCP
+      targetPort: 6032

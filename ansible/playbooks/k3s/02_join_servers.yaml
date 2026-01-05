@@ -4,7 +4,7 @@
   become: yes
   vars_files:
     - ../../group_vars/servers.yml
-    - ../../{{ env }}/secrets.yml
+    - ../../secrets_{{ env }}.yml
   tasks:
     - name: Debug private IPs
       debug:
@@ -24,4 +24,5 @@
           --kubelet-arg="cloud-provider=external" \
           --secrets-encryption \
           --disable=traefik \
+          --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule \
           --token={{ cluster_token }}

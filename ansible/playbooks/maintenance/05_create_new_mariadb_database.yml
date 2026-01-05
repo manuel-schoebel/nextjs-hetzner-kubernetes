@@ -1,0 +1,68 @@
+---
+- name: Create a new MariaDB Galera database
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+
+  vars:
+    app_name: "example_app"
+    # db_password should be defined in secrets file as: {{ app_name }}_db_password
+
+  tasks:
+    - name: Ensure mariadb_root_password variable is defined
+      assert:
+        that:
+          - mariadb_root_password is defined
+        msg: "The variable 'mariadb_root_password' must be provided in the secrets file."
+
+    - name: Ensure db_password variable is defined
+      assert:
+        that:
+          - db_password is defined
+        msg: "The variable 'db_password' must be provided via --extra-vars"
+
+    - name: Show existing databases
+      shell: |
+        kubectl exec -i mariadb-galera-0 -n default -- bash -c "
+          mariadb -u root -p{{ mariadb_root_password }} -e \"SHOW DATABASES;\"
+        "
+      args:
+        executable: /bin/bash
+      register: db_list
+      failed_when: db_list.rc != 0
+
+    - name: Print existing databases
+      debug:
+        var: db_list.stdout_lines
+
+    - name: Create new MariaDB user and database
+      shell: |
+        kubectl exec -i mariadb-galera-0 -n default -- bash -c "
+          mariadb -u root -p{{ mariadb_root_password }} -e \"
+          CREATE DATABASE IF NOT EXISTS {{ app_name }};
+          CREATE USER IF NOT EXISTS '{{ app_name }}'@'%' IDENTIFIED BY '{{ db_password }}';
+          GRANT ALL PRIVILEGES ON {{ app_name }}.* TO '{{ app_name }}'@'%';
+          FLUSH PRIVILEGES;\"
+        "
+      args:
+        executable: /bin/bash
+      register: db_result
+      failed_when: db_result.rc != 0
+
+    - name: Show result of MariaDB user and database creation
+      debug:
+        msg: "Database '{{ app_name }}' and user '{{ app_name }}' created successfully"
+
+    - name: Verify database was created
+      shell: |
+        kubectl exec -i mariadb-galera-0 -n default -- bash -c "
+          mariadb -u root -p{{ mariadb_root_password }} -e \"SHOW DATABASES LIKE '{{ app_name }}';\"
+        "
+      args:
+        executable: /bin/bash
+      register: verify_result
+
+    - name: Print verification
+      debug:
+        var: verify_result.stdout_lines

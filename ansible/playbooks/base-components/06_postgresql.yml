@@ -1,0 +1,39 @@
+---
+- name: Configure PostgreSQL HA cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    # - name: Uninstall
+    #   shell: helm uninstall postgresql-ha
+    - name: Install PostgreSQL HA Cluster
+      shell: |
+        helm upgrade --install postgresql-ha oci://registry-1.docker.io/bitnamicharts/postgresql-ha \
+          --set postgresql.password={{ postgresql_root_password }} \
+          --set postgresql.repmgrPassword={{ postgresql_repmgr_password }} \
+          --set postgresql.initdbScripts."create_databases\.sql"="SELECT 'PostgreSQL HA cluster ready';" \
+          --set postgresql.tls.enabled=false \
+          --set persistence.size=20Gi \
+          --set postgresql.resources.requests.memory=2Gi \
+          --set postgresql.resources.requests.cpu=1000m \
+          --set postgresql.resources.limits.memory=4Gi \
+          --set postgresql.resources.limits.cpu=2000m \
+          --set pgpool.tls.enabled=false \
+          --set pgpool.adminPassword={{ postgresql_pgpool_admin_password }} \
+          --set pgpool.resources.requests.memory=512Mi \
+          --set pgpool.resources.requests.cpu=250m \
+          --set pgpool.resources.limits.memory=1Gi \
+          --set pgpool.resources.limits.cpu=500m \
+          --set postgresql.replicaCount=3 \
+          --set postgresql.maxConnections=200 \
+          --set postgresql.sharedPreloadLibraries="pg_stat_statements" \
+          --set postgresql.postgresqlExtendedConf="log_statement = 'all'\nlog_min_duration_statement = 1000" \
+          --set metrics.enabled=true \
+          --set metrics.resources.requests.memory=128Mi \
+          --set metrics.resources.requests.cpu=100m \
+          --set volumePermissions.enabled=true \
+          --set pgpool.customUsers.usernames="quizshopping_medusa" \
+          --set pgpool.customUsers.passwords="{{ quizshopping_medusa_db_password }}"

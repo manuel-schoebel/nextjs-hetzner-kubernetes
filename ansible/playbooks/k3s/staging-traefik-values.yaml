@@ -4,7 +4,7 @@ globalArguments:
 additionalArguments:
   - "--serversTransport.insecureSkipVerify=true"
   - "--log.level=INFO"
-  - "--providers.kubernetesingress.ingressendpoint.ip=49.13.43.160"
+  - "--providers.kubernetesingress.ingressendpoint.ip=162.55.156.204"
 
 deployment:
   enabled: true
@@ -46,7 +46,7 @@ service:
     load-balancer.hetzner.cloud/hostname: k3s-lb
     load-balancer.hetzner.cloud/http-redirect-https: "false"
     load-balancer.hetzner.cloud/location: nbg1
-    load-balancer.hetzner.cloud/name: k3s-production-lb
+    load-balancer.hetzner.cloud/name: k3s-staging-lb
     load-balancer.hetzner.cloud/use-private-ip: "true"
     load-balancer.hetzner.cloud/network-zone: eu-central
   labels: {}

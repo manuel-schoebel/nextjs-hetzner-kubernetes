@@ -1,0 +1,83 @@
+---
+- name: Create a new PostgreSQL database
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+
+  vars:
+    app_name: "client_service"
+  tasks:
+    - name: Ensure postgresql_root_password variable is defined
+      assert:
+        that:
+          - postgresql_root_password is defined
+        msg: "The variable 'postgresql_root_password' must be provided in the secrets file."
+    
+    - name: Print PostgreSQL root password to verify
+      debug:
+        msg: "PostgreSQL root password is: {{ postgresql_root_password }}"
+    
+    - name: Test PostgreSQL connection
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          SELECT version();\"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_connection_test
+      failed_when: pg_connection_test.rc != 0
+
+    - name: Show PostgreSQL connection test result
+      debug:
+        var: pg_connection_test.stdout_lines
+
+    - name: Create new PostgreSQL user and database
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          CREATE DATABASE {{ app_name }};
+          CREATE USER {{ app_name }} WITH ENCRYPTED PASSWORD '{{ lookup('vars', app_name + '_db_password') }}';
+          GRANT ALL PRIVILEGES ON DATABASE {{ app_name }} TO {{ app_name }};
+          ALTER DATABASE {{ app_name }} OWNER TO {{ app_name }};\"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_create_result
+      failed_when: pg_create_result.rc != 0
+
+    - name: Show result of PostgreSQL user and database creation
+      debug:
+        var: pg_create_result.stdout_lines
+
+    - name: Verify database and user creation
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          SELECT datname FROM pg_database WHERE datname = '{{ app_name }}';
+          SELECT usename FROM pg_user WHERE usename = '{{ app_name }}';\"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_verify_result
+      failed_when: pg_verify_result.rc != 0
+
+    - name: Show verification results
+      debug:
+        var: pg_verify_result.stdout_lines
+
+    - name: Test connection with new user (via pgpool)
+      shell: |
+        kubectl get pods -l app.kubernetes.io/name=postgresql-ha,app.kubernetes.io/component=pgpool -o jsonpath='{.items[0].metadata.name}' | xargs -I {} kubectl exec -i {} -n default -- bash -c "
+          PGPASSWORD='{{ lookup('vars', app_name + '_db_password') }}' psql -h localhost -U {{ app_name }} -d {{ app_name }} -c \"
+          SELECT 'Connection successful as {{ app_name }}' as status;\"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_user_test
+      failed_when: pg_user_test.rc != 0
+
+    - name: Show user connection test result
+      debug:
+        var: pg_user_test.stdout_lines

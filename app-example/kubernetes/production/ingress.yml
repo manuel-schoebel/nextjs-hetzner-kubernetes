@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-example-ingress
+  namespace: app-example
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    certmanager.k8s.io/issuer: "letsencrypt"
+    certmanager.k8s.io/acme-challenge-type: dns01
+spec:
+  tls:
+    - hosts:
+        - app-example.kumpel.cloud
+      secretName: app-example-tls
+  rules:
+    - host: app-example.kumpel.cloud
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-example
+                port:
+                  number: 3000

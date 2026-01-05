@@ -1,0 +1,37 @@
+---
+- name: Install software
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Install cert manager
+      shell: |
+        helm repo add jetstack https://charts.jetstack.io --force-update
+        helm upgrade --install \
+          cert-manager jetstack/cert-manager \
+          --namespace cert-manager \
+          --create-namespace \
+          --version v1.15.3 \
+          --set crds.enabled=true
+    - name: Check if aws-secret-access-key exists
+      shell: |
+        kubectl -n cert-manager delete secret aws-secret-access-key
+      ignore_errors: true
+    - name: add aws-secret-access-key
+      shell: |
+        kubectl -n cert-manager create secret generic aws-secret-access-key \
+        --from-literal=secret-access-key={{ aws_secret_access_key }} \
+        --from-literal=access-key-id={{ aws_access_key_id }}
+    - name: Copy issuer.yml to the server
+      copy:
+        src: ./issuer.yml
+        dest: /tmp/issuer.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create issuer
+      shell: |
+        kubectl apply -f /tmp/issuer.yml

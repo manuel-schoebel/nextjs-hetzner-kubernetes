@@ -1,0 +1,19 @@
+---
+- name: Create monitor user for proxy sql
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  tasks:
+    - name: Create new user and database
+      shell: |
+        kubectl exec -i galera-mariadb-galera-0 -n default -- bash -c "
+          mysql -u root -p'{{ mariadb_root_password }}' -e \"
+          CREATE USER IF NOT EXISTS 'monitor'@'%' IDENTIFIED BY '{{ proxy_sql_monitor_password }}';
+          GRANT USAGE, REPLICATION CLIENT ON *.* TO 'monitor'@'%';
+          FLUSH PRIVILEGES;\"
+        "
+      args:
+        executable: /bin/bash
+      register: mariadb_result
+      failed_when: mariadb_result.rc != 0

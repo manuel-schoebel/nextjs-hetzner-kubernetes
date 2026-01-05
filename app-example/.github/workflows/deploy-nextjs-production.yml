@@ -1,0 +1,73 @@
+name: Nextjs Production
+
+on:
+  push:
+    branches:
+      - main # Trigger on push to the main branch
+    paths:
+      - "nextjs/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code from the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Set up Docker Buildx for building the image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Log in to Docker Hub (or GitHub Container Registry)
+      # Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Cache Docker layers for dependencies
+      - name: Cache Docker layers for dependencies
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache # Cache directory for Docker layers
+          key: ${{ runner.os }}-docker-deps-${{ hashFiles('shopware/composer.json', 'shopware/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-docker-deps-
+
+      # Get the current version from deployment.yml
+      - name: Extract current version
+        id: version
+        run: |
+          export CURRENT_VERSION=$(grep 'image: ghcr.io/your-repo/app-example' kubernetes/production/nextjs/deployment.yml | sed 's/.*nextjs-v\([0-9.]*\).*/\1/')
+          echo "Current version is: $CURRENT_VERSION"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      # Increment the version tag
+      - name: Increment version
+        id: inc_version
+        run: |
+          IFS='.' read -r major minor patch <<< "${{ env.CURRENT_VERSION }}"
+          NEW_VERSION="$major.$minor.$((patch+1))"
+          echo "New version is: $NEW_VERSION"
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      # Build and push the Docker image
+      - name: Build and push Docker image
+        run: |
+          docker build \
+            --build-arg PACKAGES_TOKEN=${{ secrets.PACKAGES_TOKEN }} \
+            -t ghcr.io/your-repo/app-example:nextjs-v${{ env.NEW_VERSION }} -f nextjs/Dockerfile nextjs/
+          docker push ghcr.io/your-repo/app-example:nextjs-v${{ env.NEW_VERSION }}
+
+      # Update the version tag in deployment.yml
+      - name: Update deployment.yml with new version
+        run: |
+          sed -i "s/nextjs-v${{ env.CURRENT_VERSION }}/nextjs-v${{ env.NEW_VERSION }}/g" kubernetes/production/nextjs/deployment.yml
+
+      # Commit the updated deployment.yml
+      - name: Commit changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add kubernetes/production/nextjs/deployment.yml
+          git commit -m "Update nextjs deployment.yml to nextjs-v${{ env.NEW_VERSION }}"
+          git push

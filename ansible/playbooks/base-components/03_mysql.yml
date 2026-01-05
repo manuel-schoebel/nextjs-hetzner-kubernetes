@@ -1,0 +1,28 @@
+---
+- name: Configure MySQL cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    # - name: Uninstall
+    #   shell: helm uninstall mysql
+    - name: Install Mysql Cluster
+      shell: |
+        helm upgrade --install mysql oci://registry-1.docker.io/bitnamicharts/mysql \
+          --set architecture=replication \
+          --set auth.rootPassword={{ mysql_root_password }} \
+          --set auth.replicationPassword={{ mysql_replication_password }} \
+          --set secondary.persistence.size=10Gi \
+          --set primary.persistence.size=10Gi \
+          --set primary.resources.requests.memory=2Gi \
+          --set primary.resources.requests.cpu=1000m \
+          --set primary.resources.limits.memory=4Gi \
+          --set primary.resources.limits.cpu=2000m \
+          --set secondary.resources.requests.memory=2Gi \
+          --set secondary.resources.requests.cpu=1000m \
+          --set secondary.resources.limits.memory=4Gi \
+          --set secondary.resources.limits.cpu=2000m \
+          --set secondary.replicaCount=1

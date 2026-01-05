@@ -1,0 +1,58 @@
+---
+- name: Configure MariaDB Galera cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    # - name: Uninstall
+    #   shell: |
+    #     helm uninstall mariadb-operator -n mariadb-operator
+    #     kubectl delete namespace mariadb-operator
+    - name: Create mariadb-operator namespace
+      shell: |
+        kubectl create namespace mariadb-operator --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Install MariaDB Operator (without wait to allow CRDs to register)
+      shell: |
+        helm repo add mariadb-operator https://mariadb-operator.github.io/mariadb-operator
+        helm repo update
+        helm upgrade --install mariadb-operator mariadb-operator/mariadb-operator \
+          --namespace mariadb-operator \
+          --version 0.35.0 \
+          --set metrics.enabled=true \
+          --set webhook.cert.certManager.enabled=true \
+          --skip-crds
+
+    - name: Install CRDs separately
+      shell: |
+        kubectl apply --server-side -f https://raw.githubusercontent.com/mariadb-operator/mariadb-operator/v0.35.0/deploy/crds/crds.yaml
+
+    - name: Wait for CRDs to be established
+      shell: |
+        kubectl wait --for=condition=Established crd/mariadbs.k8s.mariadb.com --timeout=60s
+        kubectl wait --for=condition=Established crd/backups.k8s.mariadb.com --timeout=60s
+        kubectl wait --for=condition=Established crd/restores.k8s.mariadb.com --timeout=60s
+
+    - name: Restart operator to pick up CRDs
+      shell: |
+        kubectl rollout restart deployment/mariadb-operator -n mariadb-operator
+
+    - name: Wait for operator to be ready
+      shell: |
+        kubectl rollout status deployment/mariadb-operator -n mariadb-operator --timeout=120s
+        kubectl rollout status deployment/mariadb-operator-webhook -n mariadb-operator --timeout=120s
+
+    - name: Copy mariadb_values.yaml
+      template:
+        src: 07_mariadb_values.yml.j2
+        dest: /tmp/mariadb_values.yml
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Apply MariaDB Galera cluster configuration
+      shell: |
+        kubectl apply -f /tmp/mariadb_values.yml

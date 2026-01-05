@@ -1,0 +1,25 @@
+---
+- name: Create a new database
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+
+  vars:
+    app_name: "client_service"
+  tasks:
+    - name: Create new mysql user and database
+      shell: |
+        kubectl exec -i mysql-primary-0 -n default -- bash -c "
+          mysql -u root -p'{{ mysql_root_password }}' -e \"
+          SHOW DATABASES;
+          \"
+        "
+      args:
+        executable: /bin/bash
+      register: db_result
+      failed_when: db_result.rc != 0
+
+    - name: Show result of mysql user and database creation
+      debug:
+        var: db_result.stdout_lines

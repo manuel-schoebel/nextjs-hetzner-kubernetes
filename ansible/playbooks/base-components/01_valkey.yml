@@ -1,0 +1,23 @@
+---
+- name: Configure MySQL cluster
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Install Valkey
+      shell: |
+        helm upgrade --install valkey oci://registry-1.docker.io/bitnamicharts/valkey \
+          --set architecture=replication \
+          --set auth.password={{ valkey_password }} \
+          --set auth.usePasswordFiles=false \
+          --set auth.usePasswordFileFromSecret=false \
+          --set sentinel.enabled=true \
+          --set master.persistence.size=10Gi \
+          --set replica.persistence.size=10Gi \
+          --set master.resources.requests.memory=512Mi \
+          --set master.resources.limits.memory=2Gi \
+          --set replica.resources.requests.memory=512Mi \
+          --set replica.resources.limits.memory=2Gi \

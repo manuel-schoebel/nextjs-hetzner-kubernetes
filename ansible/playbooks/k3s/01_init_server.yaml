@@ -3,7 +3,7 @@
   hosts: server0
   become: yes
   vars_files:
-    - ../../{{ env }}/secrets.yml
+    - ../../secrets_{{ env }}.yml
   tasks:
     - name: Update apt cache
       apt:
@@ -23,6 +23,7 @@
           --kubelet-arg="cloud-provider=external" \
           --secrets-encryption \
           --disable=traefik \
+          --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule \
           --token={{ cluster_token }}
 
     - name: Install Helm

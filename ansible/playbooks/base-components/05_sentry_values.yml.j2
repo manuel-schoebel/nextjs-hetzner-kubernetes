@@ -1,0 +1,87 @@
+user:
+  create: true
+  email: manuel@digitale-kumpel.ruhr
+  password: {{ sentry_admin_password }}
+
+mail:
+  backend: smtp
+  from: "manuel@digitale-kumpel.ruhr"
+  username: "manuel@digitale-kumpel.ruhr"
+  password: "{{ sentry_mail_password }}"
+  host: "smtp-relay.brevo.com"
+  port: 587
+  useSsl: false
+  useTls: true
+
+nginx:
+  enabled: false
+
+hooks:
+  activeDeadlineSeconds: 1000
+
+snuba:
+  api:
+    replicas: 1
+  consumer:
+    replicas: 1
+  issueOccurrenceConsumer:
+    replicas: 1
+  outcomesConsumer:
+    replicas: 1
+  profilingFunctionsConsumer:
+    replicas: 1
+  profilingProfilesConsumer:
+    replicas: 1
+  replacer:
+    replicas: 1
+  replaysConsumer:
+    replicas: 1
+  sessionsConsumer:
+    replicas: 1
+  subscriptionConsumerEvents:
+    replicas: 1
+  subscriptionConsumerSessions:
+    replicas: 1
+  subscriptionConsumerTransactions:
+    replicas: 1
+  transactionsConsumer:
+    replicas: 1
+
+memcached:
+  replicaCount: 1
+
+rabbitmq:
+  replicaCount: 1
+
+symbolicator:
+  replicas: 1
+
+sentry:
+  singleOrganization: false
+  worker:
+    replicas: 1
+  ingestConsumer:
+    replicas: 1
+  ingestMetricsConsumerPerf:
+    replicas: 1
+  ingestMetricsConsumerRh:
+    replicas: 1
+  ingestMonitors:
+    replicas: 1
+
+postgresql:
+  postgresqlPassword: {{ sentry_pg_password }}
+
+kafka:
+  replicaCount: 3
+  zookeeper:
+    replicaCount: 1
+
+zookeeper:
+  replicaCount: 3
+
+clickhouse:
+  clickhouse:
+    replicas: "1"
+  tabix:
+    replicas: "1"

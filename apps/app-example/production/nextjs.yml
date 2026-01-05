@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: serviceName-nextjs
+  namespace: argocd
+spec:
+  source:
+    path: kubernetes/production/nextjs
+    repoURL: https://github.com/your-github/serviceName.git
+    targetRevision: main
+  destination:
+    namespace: serviceName-production
+    server: https://kubernetes.default.svc
+  sources: []
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

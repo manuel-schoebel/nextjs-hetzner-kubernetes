@@ -1,0 +1,37 @@
+---
+- name: Configure HA Redis Proxy
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  tasks:
+    - name: Copy configmap.yaml
+      template:
+        src: config-map.yml.j2
+        dest: /tmp/haproxy-configmap.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create config map
+      shell: |
+        kubectl apply -f /tmp/haproxy-configmap.yml
+    - name: Copy deployment.yaml
+      template:
+        src: deployment.yml
+        dest: /tmp/haproxy-deployment.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create deployment
+      shell: |
+        kubectl apply -f /tmp/haproxy-deployment.yml
+    - name: Copy service.yaml
+      template:
+        src: service.yml
+        dest: /tmp/haproxy-service.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create service
+      shell: |
+        kubectl apply -f /tmp/haproxy-service.yml

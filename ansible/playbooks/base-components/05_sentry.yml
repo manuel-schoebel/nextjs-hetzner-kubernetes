@@ -1,0 +1,40 @@
+---
+- name: Configure sentry
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Add repo sentry
+      shell: |
+        helm repo add sentry https://sentry-kubernetes.github.io/charts
+        helm repo update
+
+    - name: Copy sentry_values.yaml
+      template:
+        src: 05_sentry_values.yml.j2
+        dest: /tmp/sentry_values.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Upgrade sentry
+      shell: |
+        helm upgrade --install sentry sentry/sentry \
+          --namespace sentry \
+          --create-namespace \
+          --wait \
+          --timeout=6000s \
+          -f /tmp/sentry_values.yml
+
+    - name: Copy sentry_ingress.yaml
+      template:
+        src: 05_sentry_ingress.yml
+        dest: /tmp/sentry_ingress.yml
+        owner: root
+        group: root
+        mode: "0644"
+    - name: Create sentry ingress map
+      shell: |
+        kubectl apply -f /tmp/sentry_ingress.yml

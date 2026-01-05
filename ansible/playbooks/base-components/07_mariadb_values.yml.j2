@@ -1,0 +1,126 @@
+# MariaDB root password secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-root
+  namespace: default
+type: Opaque
+stringData:
+  password: "{{ mariadb_root_password }}"
+---
+# MariaDB metrics password secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-metrics
+  namespace: default
+type: Opaque
+stringData:
+  password: "{{ mariadb_metrics_password }}"
+---
+# MariaDB Galera cluster
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb-galera
+  namespace: default
+spec:
+  rootPasswordSecretKeyRef:
+    name: mariadb-root
+    key: password
+
+  # Image configuration
+  image: mariadb:11.4
+
+  # Cluster size - 3 nodes for quorum
+  replicas: 3
+
+  # Galera cluster configuration
+  galera:
+    enabled: true
+    primary:
+      podIndex: 0
+      automaticFailover: true
+    sst: mariabackup
+    replicaThreads: 4
+    recovery:
+      enabled: true
+      clusterHealthyTimeout: 5m
+      clusterBootstrapTimeout: 10m
+      podRecoveryTimeout: 5m
+      podSyncTimeout: 5m
+
+  # MariaDB configuration tuned for Galera
+  myCnf: |
+    [mariadb]
+    bind-address=*
+    default_storage_engine=InnoDB
+    binlog_format=ROW
+
+    # Galera requirements
+    innodb_autoinc_lock_mode=2
+    innodb_flush_log_at_trx_commit=2
+
+    # InnoDB performance (tuned for 4Gi memory limit)
+    innodb_buffer_pool_size=2G
+    innodb_log_file_size=512M
+    innodb_log_buffer_size=64M
+    innodb_file_per_table=ON
+    innodb_open_files=400
+    innodb_io_capacity=400
+    innodb_flush_method=O_DIRECT
+
+    # Connection settings
+    max_connections=500
+    max_allowed_packet=256M
+    thread_cache_size=128
+    table_open_cache=4000
+
+    # Query cache disabled (recommended for Galera)
+    query_cache_type=OFF
+    query_cache_size=0
+
+    # Slow query logging
+    slow_query_log=ON
+    long_query_time=2
+
+    # Character set
+    character-set-server=utf8mb4
+    collation-server=utf8mb4_unicode_ci
+
+  # Persistent storage
+  storage:
+    size: 50Gi
+    storageClassName: hcloud-volumes
+
+  # Resource allocation
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+
+  # Update strategy - one pod at a time
+  updateStrategy:
+    type: RollingUpdate
+
+  # Spread pods across different nodes
+  affinity:
+    antiAffinityEnabled: true
+
+  # Enable metrics for Prometheus monitoring
+  metrics:
+    enabled: true
+    passwordSecretKeyRef:
+      name: mariadb-metrics
+      key: password
+
+  # Service configuration
+  service:
+    type: ClusterIP
+  primaryService:
+    type: ClusterIP
+  secondaryService:
+    type: ClusterIP

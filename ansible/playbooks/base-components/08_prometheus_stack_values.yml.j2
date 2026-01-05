@@ -1,0 +1,128 @@
+# kube-prometheus-stack values
+# Docs: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: "{{ grafana_admin_password }}"
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: hcloud-volumes
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt
+    hosts:
+      - k8s-grafana.kumpel.cloud
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - k8s-grafana.kumpel.cloud
+
+  # Default dashboards
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: Europe/Berlin
+
+  # Additional data sources can be added here
+  additionalDataSources: []
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    # Retention period for metrics
+    retention: 30d
+    retentionSize: 45GB
+
+    # Storage configuration
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hcloud-volumes
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # Resource limits
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+
+    # Scrape all ServiceMonitors across namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+  # Prometheus accessed internally by Grafana - no public ingress needed
+  # Use: kubectl port-forward svc/kube-prometheus-stack-prometheus -n monitoring 9090:9090
+  ingress:
+    enabled: false
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: hcloud-volumes
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # Alertmanager accessed internally - no public ingress needed
+  # Use: kubectl port-forward svc/kube-prometheus-stack-alertmanager -n monitoring 9093:9093
+  ingress:
+    enabled: false
+
+# Node exporter - metrics from all nodes
+nodeExporter:
+  enabled: true
+
+# kube-state-metrics - Kubernetes object metrics
+kubeStateMetrics:
+  enabled: true
+
+# Scrape kubelet metrics
+kubelet:
+  enabled: true
+
+# Scrape K3s components
+kubeApiServer:
+  enabled: true
+
+kubeControllerManager:
+  enabled: false  # K3s bundles this differently
+
+kubeScheduler:
+  enabled: false  # K3s bundles this differently
+
+kubeProxy:
+  enabled: false  # K3s uses different proxy
+
+kubeEtcd:
+  enabled: false  # K3s uses embedded etcd/sqlite
+
+# CoreDNS metrics
+coreDns:
+  enabled: true

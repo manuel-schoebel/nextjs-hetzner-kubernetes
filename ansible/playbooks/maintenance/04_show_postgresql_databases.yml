@@ -1,0 +1,87 @@
+---
+- name: Show PostgreSQL databases and users
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+
+  tasks:
+    - name: Show PostgreSQL databases
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          SELECT datname, pg_size_pretty(pg_database_size(datname)) as size 
+          FROM pg_database 
+          WHERE datistemplate = false 
+          ORDER BY datname;
+          \"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_databases_result
+      failed_when: pg_databases_result.rc != 0
+
+    - name: Show PostgreSQL databases result
+      debug:
+        var: pg_databases_result.stdout_lines
+
+    - name: Show PostgreSQL users
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          SELECT usename, usesuper, usecreatedb, usebypassrls
+          FROM pg_user 
+          ORDER BY usename;
+          \"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_users_result
+      failed_when: pg_users_result.rc != 0
+
+    - name: Show PostgreSQL users result
+      debug:
+        var: pg_users_result.stdout_lines
+
+    - name: Show PostgreSQL cluster status
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -U postgres -d postgres -c \"
+          SELECT application_name, client_addr, state, sync_state, sync_priority
+          FROM pg_stat_replication;
+          \"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_replication_result
+      failed_when: pg_replication_result.rc != 0
+
+    - name: Show PostgreSQL replication status
+      debug:
+        var: pg_replication_result.stdout_lines
+
+    - name: Show pgpool status (via pgpool pod)
+      shell: kubectl get pods -l app.kubernetes.io/name=postgresql-ha,app.kubernetes.io/component=pgpool -o jsonpath='{.items[0].metadata.name}'
+      register: pgpool_pod_name
+      failed_when: pgpool_pod_name.rc != 0
+
+    - name: Show pgpool pod info
+      debug:
+        msg: "Pgpool pod running: {{ pgpool_pod_name.stdout }}"
+
+    - name: Show PostgreSQL cluster status
+      shell: |
+        kubectl exec -i postgresql-ha-postgresql-0 -n default -- bash -c "
+          PGPASSWORD={{ postgresql_root_password }} psql -h localhost -U postgres -d postgres -c \"
+          SELECT application_name, client_addr, state, sync_state 
+          FROM pg_stat_replication;
+          \"
+        "
+      args:
+        executable: /bin/bash
+      register: pg_replication_result
+      failed_when: pg_replication_result.rc != 0
+
+    - name: Show PostgreSQL replication status
+      debug:
+        var: pg_replication_result.stdout_lines

@@ -1,0 +1,47 @@
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    email: your@email.org
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-staging-issuer-private-key
+    solvers:
+      - dns01:
+          route53:
+            region: eu-central-1
+            accessKeyIDSecretRef:
+              name: aws-secret-access-key
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: aws-secret-access-key
+              key: secret-access-key
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    # You must replace this email address with your own.
+    # Let's Encrypt will use this to contact you about expiring
+    # certificates, and issues related to your account.
+    email: your@email.org
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-issuer-private-key
+    solvers:
+      - dns01:
+          route53:
+            region: eu-central-1
+            accessKeyIDSecretRef:
+              name: aws-secret-access-key
+              key: access-key-id
+            secretAccessKeySecretRef:
+              name: aws-secret-access-key
+              key: secret-access-key

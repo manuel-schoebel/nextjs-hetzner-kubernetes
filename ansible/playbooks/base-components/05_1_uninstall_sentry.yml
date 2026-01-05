@@ -1,0 +1,12 @@
+---
+- name: Configure sentry
+  hosts: server0
+  become: yes
+  vars_files:
+    - ../../secrets_{{ env }}.yml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  tasks:
+    - name: Uninstall sentry
+      shell: |
+        helm uninstall sentry

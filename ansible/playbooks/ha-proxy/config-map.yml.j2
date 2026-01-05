@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-config
+  namespace: default
+data:
+  haproxy.cfg: |
+    global
+      log stdout format raw local0
+      daemon
+      maxconn 256
+
+    defaults
+      log global
+      mode tcp
+      option tcplog
+      timeout connect 5000ms
+      timeout client 50000ms
+      timeout server 50000ms
+
+    resolvers k8s
+      parse-resolv-conf
+      hold other           10s
+      hold refused         10s
+      hold nx              10s
+      hold timeout         10s
+      hold valid           10s
+      hold obsolete        10s
+
+    frontend redis-frontend
+      bind *:6379
+      mode tcp
+      default_backend redis-backend
+
+    backend redis-backend
+      mode tcp
+      balance first
+
+      option tcp-check    
+      tcp-check send AUTH\ {{ valkey_password }}\r\n
+      tcp-check expect string +OK
+      
+      tcp-check send PING\r\n
+      tcp-check expect string +PONG
+      tcp-check send info\ replication\r\n
+      tcp-check expect string role:master
+      tcp-check send QUIT\r\n
+      tcp-check expect string +OK
+
+      server redis-replica-0 valkey-node-0.valkey-headless.default.svc.cluster.local:6379 check inter 1s resolvers k8s
+      server redis-replica-1 valkey-node-1.valkey-headless.default.svc.cluster.local:6379 check inter 1s resolvers k8s
+      server redis-replica-2 valkey-node-2.valkey-headless.default.svc.cluster.local:6379 check inter 1s resolvers k8s
+
+    listen stats
+      bind *:8080
+      mode http
+      stats enable
+      stats show-node
+      stats uri /
+      stats refresh 3s
+      stats auth admin:{{ haproxy_admin_password }}
